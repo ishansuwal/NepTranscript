@@ -4,6 +4,7 @@ import time
 import tempfile
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from pydantic import BaseModel
 
 from backend.inference import transcribe_audio
 from backend.translation import translate_text
@@ -20,6 +21,12 @@ ALLOWED_EXTENSIONS = {
     ".ogg",
     ".flac"
 }
+
+
+# ---------------- REQUEST MODEL ----------------
+
+class TranslationRequest(BaseModel):
+    text: str
 
 
 # ---------------- HEALTH CHECK ----------------
@@ -42,16 +49,12 @@ def health():
 @app.post("/transcribe")
 async def transcribe(file: UploadFile = File(...)):
 
-    request_start_time = time.time()
-
-    # Validate filename
     if not file.filename:
         raise HTTPException(
             status_code=400,
             detail="Please upload an audio file."
         )
 
-    # Validate audio extension
     extension = os.path.splitext(file.filename)[1].lower()
 
     if extension not in ALLOWED_EXTENSIONS:
@@ -64,7 +67,6 @@ async def transcribe(file: UploadFile = File(...)):
 
     try:
 
-        # Read uploaded audio
         audio_bytes = await file.read()
 
         if not audio_bytes:
@@ -73,7 +75,6 @@ async def transcribe(file: UploadFile = File(...)):
                 detail="Uploaded file is empty."
             )
 
-        # Save uploaded audio temporarily
         with tempfile.NamedTemporaryFile(
             delete=False,
             suffix=extension
@@ -82,62 +83,16 @@ async def transcribe(file: UploadFile = File(...)):
             temp.write(audio_bytes)
             temp_path = temp.name
 
-        # ---------------- STEP 1: WHISPER ASR ----------------
-
         print("Starting Nepali speech recognition...")
 
         result = transcribe_audio(temp_path)
 
         print("Transcription completed.")
 
-        # ---------------- STEP 2: NLLB TRANSLATION ----------------
-
-        print("Starting English translation...")
-
-        translation_start_time = time.time()
-
-        english_translation = translate_text(
-            result["nepali_transcription"]
-        )
-
-        translation_time = (
-            time.time() - translation_start_time
-        )
-
-        print("Translation completed.")
-
-        # ---------------- STEP 3: PERFORMANCE METRICS ----------------
-
-        total_processing_time = (
-            time.time() - request_start_time
-        )
-
-        result["english_translation"] = english_translation
-
-        result["translation_time"] = round(
-            translation_time, 3
-        )
-
-        result["total_processing_time"] = round(
-            total_processing_time, 3
-        )
-
         print(
             f"Transcription time: "
             f"{result['processing_time']} seconds"
         )
-
-        print(
-            f"Translation time: "
-            f"{result['translation_time']} seconds"
-        )
-
-        print(
-            f"Total processing time: "
-            f"{result['total_processing_time']} seconds"
-        )
-
-        # ---------------- STEP 4: API RESPONSE ----------------
 
         return {
             "filename": file.filename,
@@ -149,15 +104,56 @@ async def transcribe(file: UploadFile = File(...)):
 
     except Exception as e:
 
-        print(f"Processing error: {e}")
+        print(f"Transcription error: {e}")
 
         raise HTTPException(
             status_code=500,
-            detail="Audio processing failed."
+            detail="Audio transcription failed."
         ) from e
 
     finally:
 
-        # Remove temporary uploaded audio
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
+
+
+# ---------------- ENGLISH TRANSLATION ----------------
+
+@app.post("/translate")
+def translate(request: TranslationRequest):
+
+    if not request.text.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Please provide Nepali text to translate."
+        )
+
+    try:
+
+        print("Starting English translation...")
+
+        start_time = time.time()
+
+        english_translation = translate_text(request.text)
+
+        translation_time = time.time() - start_time
+
+        print("Translation completed.")
+
+        print(
+            f"Translation time: {translation_time:.3f} seconds"
+        )
+
+        return {
+            "english_translation": english_translation,
+            "translation_time": round(translation_time, 3)
+        }
+
+    except Exception as e:
+
+        print(f"Translation error: {e}")
+
+        raise HTTPException(
+            status_code=500,
+            detail="English translation failed."
+        ) from e

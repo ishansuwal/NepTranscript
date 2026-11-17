@@ -19,6 +19,9 @@ API_URL = "http://127.0.0.1:8000"
 if "result" not in st.session_state:
     st.session_state.result = None
 
+if "translation" not in st.session_state:
+    st.session_state.translation = None
+
 
 # ---------------- SIDEBAR ----------------
 
@@ -36,7 +39,7 @@ with st.sidebar:
 
     st.write(
         "NepTranscript converts Nepali speech into "
-        "written text and translates it into English."
+        "written text and optionally translates it into English."
     )
 
     st.subheader("AI Models")
@@ -60,7 +63,7 @@ st.title("Nepali Speech Recognition")
 
 st.write(
     "Upload a Nepali audio recording to generate "
-    "a transcript and English translation."
+    "a transcript. You can optionally translate it into English."
 )
 
 st.divider()
@@ -81,13 +84,17 @@ if uploaded_file is not None:
     st.audio(uploaded_file)
 
     if st.button(
-        "🎯 Transcribe & Translate",
+        "🎯 Transcribe Audio",
         type="primary",
         use_container_width=True
     ):
 
+        # Clear previous results
+        st.session_state.result = None
+        st.session_state.translation = None
+
         with st.spinner(
-            "Processing audio... Please wait."
+            "Transcribing Nepali audio... Please wait."
         ):
 
             try:
@@ -120,7 +127,7 @@ if uploaded_file is not None:
             except requests.exceptions.Timeout:
 
                 st.error(
-                    "Processing timed out. "
+                    "Transcription timed out. "
                     "Try a shorter recording."
                 )
 
@@ -148,46 +155,110 @@ if st.session_state.result is not None:
     result = st.session_state.result
 
     st.success(
-        "Audio processing completed successfully!"
+        "Nepali transcription completed successfully!"
     )
 
     st.divider()
 
-    # -------- TRANSCRIPTION AND TRANSLATION --------
+    # -------- NEPALI TRANSCRIPTION --------
 
-    col1, col2 = st.columns(2)
+    st.subheader("🇳🇵 Nepali Transcription")
 
-    with col1:
+    st.text_area(
+        "Nepali transcript",
+        value=result["nepali_transcription"],
+        height=200,
+        key="nepali_transcript"
+    )
 
-        st.subheader("🇳🇵 Nepali Transcription")
+    st.download_button(
+        "⬇️ Download Nepali Transcript",
+        data=result["nepali_transcription"],
+        file_name="nepali_transcript.txt",
+        mime="text/plain",
+        use_container_width=True
+    )
 
-        st.text_area(
-            "Nepali transcript",
-            value=result["nepali_transcription"],
-            height=200
+    st.divider()
+
+    # -------- OPTIONAL ENGLISH TRANSLATION --------
+
+    st.subheader("🇬🇧 English Translation")
+
+    if st.session_state.translation is None:
+
+        st.write(
+            "Translation is optional. Click below "
+            "if you want an English translation."
         )
 
-        st.download_button(
-            "⬇️ Download Nepali Transcript",
-            data=result["nepali_transcription"],
-            file_name="nepali_transcript.txt",
-            mime="text/plain",
+        if st.button(
+            "🌐 Translate to English",
             use_container_width=True
-        )
+        ):
 
-    with col2:
+            with st.spinner(
+                "Translating into English... Please wait."
+            ):
 
-        st.subheader("🇬🇧 English Translation")
+                try:
+
+                    response = requests.post(
+                        f"{API_URL}/translate",
+                        json={
+                            "text": result["nepali_transcription"]
+                        },
+                        timeout=600
+                    )
+
+                    response.raise_for_status()
+
+                    st.session_state.translation = response.json()
+
+                    st.rerun()
+
+                except requests.exceptions.ConnectionError:
+
+                    st.error(
+                        "Cannot connect to FastAPI. "
+                        "Please make sure the backend is running."
+                    )
+
+                except requests.exceptions.Timeout:
+
+                    st.error(
+                        "Translation timed out. Please try again."
+                    )
+
+                except requests.exceptions.HTTPError:
+
+                    try:
+                        detail = response.json().get(
+                            "detail",
+                            response.text
+                        )
+                    except ValueError:
+                        detail = response.text
+
+                    st.error(f"Backend error: {detail}")
+
+                except Exception as e:
+
+                    st.error(f"Unexpected error: {e}")
+
+    else:
+
+        translation = st.session_state.translation
 
         st.text_area(
             "English translation",
-            value=result["english_translation"],
+            value=translation["english_translation"],
             height=200
         )
 
         st.download_button(
             "⬇️ Download English Translation",
-            data=result["english_translation"],
+            data=translation["english_translation"],
             file_name="english_translation.txt",
             mime="text/plain",
             use_container_width=True
@@ -199,27 +270,50 @@ if st.session_state.result is not None:
 
     st.subheader("📊 Performance Metrics")
 
-    metric1, metric2, metric3, metric4 = st.columns(4)
+    if st.session_state.translation is None:
 
-    metric1.metric(
-        "Audio Duration",
-        f'{result["audio_duration"]} sec'
-    )
+        metric1, metric2 = st.columns(2)
 
-    metric2.metric(
-        "Transcription Time",
-        f'{result["processing_time"]} sec'
-    )
+        metric1.metric(
+            "Audio Duration",
+            f'{result["audio_duration"]} sec'
+        )
 
-    metric3.metric(
-        "Translation Time",
-        f'{result["translation_time"]} sec'
-    )
+        metric2.metric(
+            "Transcription Time",
+            f'{result["processing_time"]} sec'
+        )
 
-    metric4.metric(
-        "Total Processing Time",
-        f'{result["total_processing_time"]} sec'
-    )
+    else:
+
+        translation = st.session_state.translation
+
+        metric1, metric2, metric3, metric4 = st.columns(4)
+
+        metric1.metric(
+            "Audio Duration",
+            f'{result["audio_duration"]} sec'
+        )
+
+        metric2.metric(
+            "Transcription Time",
+            f'{result["processing_time"]} sec'
+        )
+
+        metric3.metric(
+            "Translation Time",
+            f'{translation["translation_time"]} sec'
+        )
+
+        total_time = (
+            result["processing_time"]
+            + translation["translation_time"]
+        )
+
+        metric4.metric(
+            "Combined Processing Time",
+            f'{total_time:.3f} sec'
+        )
 
     st.divider()
 
@@ -231,6 +325,7 @@ if st.session_state.result is not None:
     ):
 
         st.session_state.result = None
+        st.session_state.translation = None
         st.rerun()
 
 
