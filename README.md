@@ -1,4 +1,3 @@
-
 # 🎙️ NepTranscript
 
 ### Nepali Speech Recognition and Optional English Translation
@@ -36,29 +35,29 @@ NepTranscript supports two inference configurations: local CPU inference and rem
 In local inference mode, both the Streamlit frontend and FastAPI backend run on the user's computer.
 
 ```text
-        Audio Upload
-             |
-             v
-      Streamlit Frontend
-             |
-             v
-       FastAPI Backend
-             |
-             v
-      Audio Preprocessing
-           FFmpeg
-             |
-             v
-      Whisper Small FFT
-             |
-             v
-       Nepali Transcript
-             |
-             v
-       Streamlit Results
-             |
-             v
-      Download Transcript
+       Audio Upload
+            |
+            v
+     Streamlit Frontend
+            |
+            v
+      FastAPI Backend
+            |
+            v
+    Audio Preprocessing
+          FFmpeg
+            |
+            v
+     Whisper Small FFT
+            |
+            v
+      Nepali Transcript
+            |
+            v
+      Streamlit Results
+            |
+            v
+     Download Transcript
 ```
 
 ### 2. Remote GPU Inference
@@ -66,35 +65,36 @@ In local inference mode, both the Streamlit frontend and FastAPI backend run on 
 For GPU inference, the Streamlit frontend runs locally, while the FastAPI backend and fine-tuned models run in Google Colab using an NVIDIA Tesla T4 GPU.
 
 ```text
-         Local Computer
-      Streamlit Frontend
-             |
-             | HTTP Requests
-             v
-        Ngrok Tunnel
-             |
-             v
-        Google Colab
-        FastAPI Backend
-             |
-             v
-      Audio Preprocessing
-           FFmpeg
-             |
-             v
-       NVIDIA Tesla T4
-          GPU
-          /  \
-         v    v
-      Whisper NLLB-200
-      Small FFT
-         |    |
-         v    v
-      Nepali English
-      Transcript Translation
-         \    /
-          v  v
-      Streamlit Results
+          Local Computer
+        Streamlit Frontend
+                |
+                | HTTP Requests
+                v
+           ngrok Tunnel
+                |
+                v
+           Google Colab
+          FastAPI Backend
+                |
+                v
+        Audio Preprocessing
+              FFmpeg
+                |
+                v
+          NVIDIA Tesla T4
+                |
+          +-----+-----+
+          |           |
+          v           v
+     Whisper FFT    NLLB-200
+          |           |
+          v           v
+   Nepali Transcript  English Translation
+          |           |
+          +-----+-----+
+                |
+                v
+        Streamlit Results
 ```
 
 The ngrok tunnel exposes the Colab-hosted FastAPI backend through a public URL, allowing the locally running Streamlit application to communicate with the remote GPU inference server.
@@ -104,13 +104,13 @@ The ngrok tunnel exposes the Colab-hosted FastAPI backend through a public URL, 
 Translation is performed through a separate API endpoint. Users can first generate the Nepali transcript and request English translation independently using NLLB-200.
 
 ```text
-       Nepali Transcript
+      Nepali Transcript
               |
               v
         Translate Button
               |
               v
-         FastAPI Backend
+        FastAPI Backend
               |
               v
             NLLB-200
@@ -206,6 +206,7 @@ One recorded local CPU inference run produced the following results:
 
 | Metric | Time |
 |---|---:|
+| Audio Duration | 3.013 seconds |
 | Transcription | 10.255 seconds |
 | Translation | 4.681 seconds |
 | Total Processing | 14.936 seconds |
@@ -223,7 +224,49 @@ One recorded GPU inference run produced the following results:
 | Translation | 0.205 seconds |
 | Total Processing | 0.655 seconds |
 
-*These are individual example measurements, not average benchmark results. Actual processing time varies depending on audio duration, hardware, and runtime conditions.*
+*These are individual example measurements, not average benchmark results. Actual processing time varies depending on audio duration, hardware, and runtime conditions. The measurements should be interpreted as the reported model/application processing times; network latency may add to the end-to-end experience in remote mode.*
+
+## 🖥️ Application Screenshots
+
+The following screenshots demonstrate NepTranscript in both local CPU and remote GPU configurations. Both configurations use the same audio input.
+
+### 💻 Local CPU Inference
+
+**1. Home Page**
+
+![CPU Home](assets/screenshots/cpu_home.png)
+
+**2. Audio Upload**
+
+![CPU Audio Upload](assets/screenshots/cpu_upload.png)
+
+**3. Nepali Transcription**
+
+![CPU Transcription](assets/screenshots/cpu_transcription.png)
+
+**4. English Translation and Results**
+
+![CPU Translation and Results](assets/screenshots/cpu_translation_results.png)
+
+---
+
+### ⚡ Remote GPU Inference (NVIDIA Tesla T4)
+
+**1. Home Page**
+
+![GPU Home](assets/screenshots/gpu_home.png)
+
+**2. Audio Upload**
+
+![GPU Audio Upload](assets/screenshots/gpu_upload.png)
+
+**3. Nepali Transcription**
+
+![GPU Transcription](assets/screenshots/gpu_transcription.png)
+
+**4. English Translation and Results**
+
+![GPU Translation and Results](assets/screenshots/gpu_translation_results.png)
 
 ## 📁 Project Structure
 
@@ -246,6 +289,9 @@ NepTranscript/
 │   └── whisper_small_fft/
 │
 ├── tests/
+│
+├── assets/
+│   └── screenshots/
 │
 ├── app.py
 ├── requirements.txt
@@ -276,10 +322,10 @@ cd NepTranscript
 python -m venv venv
 ```
 
-Activate it on Windows:
+Activate it on Windows PowerShell:
 
 ```powershell
-venv\Scripts\activate
+.\venv\Scripts\Activate.ps1
 ```
 
 ### 3. Install Dependencies
@@ -308,11 +354,11 @@ uvicorn backend.main:app --host 127.0.0.1 --port 8000
 
 API documentation:
 
-http://127.0.0.1:8000/docs
+[http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
 Health check:
 
-http://127.0.0.1:8000/health
+[http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
 
 ### 6. Start the Streamlit Frontend
 
@@ -324,7 +370,7 @@ streamlit run app.py
 
 Open the application at:
 
-http://localhost:8501
+[http://localhost:8501](http://localhost:8501)
 
 ## ⚡ Remote GPU Inference Setup (Google Colab)
 
@@ -381,6 +427,7 @@ API_URL = "YOUR_NGROK_PUBLIC_URL"
 The Streamlit frontend can now send transcription and translation requests to the Colab-hosted GPU backend.
 
 **Note:**
+
 - The ngrok URL is temporary and changes when a new tunnel is created.
 - The Colab runtime must remain active while using remote GPU inference.
 - The ngrok tunnel must remain active for communication between the local frontend and remote backend.
