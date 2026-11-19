@@ -7,7 +7,7 @@ This folder contains the Jupyter notebooks used for dataset preparation, baselin
 | Notebook | Description |
 |---|---|
 | `01_dataset_preparation.ipynb` | Dataset loading, preprocessing, and preparation for Whisper training. |
-| `02_whisper_baseline_professional.ipynb` | Evaluates the pretrained Whisper Small model on the Nepali dataset to establish baseline performance. |
+| `02_whisper_baseline.ipynb` | Evaluates the pretrained Whisper Small model on the Nepali dataset to establish baseline performance. |
 | `03_whisper_full_finetuning.ipynb` | Fine-tunes Whisper Small using full fine-tuning (FFT) and evaluates the resulting model. |
 | `04_whisper_lora_training.ipynb` | Fine-tunes Whisper Small using LoRA and evaluates its performance against the full fine-tuning approach. |
 | `05_inference_gpu.ipynb` | Demonstrates GPU-based inference, Nepali transcription, English translation, and API deployment. |
